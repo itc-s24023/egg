@@ -264,31 +264,38 @@ function GamesPanel() {
         "GamesPanel.useState": ()=>Array(9).fill(null)
     }["GamesPanel.useState"]);
     const [result, setResult] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
+    const [thinking, setThinking] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     function selectGame(next) {
         setGame(next);
         setBoard(next === "othello" ? initialOthello() : Array(sizes[next]).fill(null));
         setResult("");
+        setThinking(false);
     }
     async function move(index) {
-        if (board[index] !== null || result) return;
-        const response = await fetch("/api/game", {
-            method: "POST",
-            headers: {
-                "content-type": "application/json"
-            },
-            body: JSON.stringify({
-                gameType: game,
-                board,
-                index
-            })
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            setResult(data.error);
-            return;
+        if (board[index] !== null || result || thinking) return;
+        setThinking(true);
+        try {
+            const response = await fetch("/api/game", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json"
+                },
+                body: JSON.stringify({
+                    gameType: game,
+                    board,
+                    index
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                setResult(data.error);
+                return;
+            }
+            setBoard(data.board);
+            if (data.result) setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！");
+        } finally{
+            setThinking(false);
         }
-        setBoard(data.board);
-        if (data.result) setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！");
     }
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
         className: "care card",
@@ -297,7 +304,7 @@ function GamesPanel() {
                 children: "ミニゲーム"
             }, void 0, false, {
                 fileName: "[project]/src/app/GamesPanel.tsx",
-                lineNumber: 23,
+                lineNumber: 29,
                 columnNumber: 41
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -308,36 +315,46 @@ function GamesPanel() {
                         children: gameLabels[type]
                     }, type, false, {
                         fileName: "[project]/src/app/GamesPanel.tsx",
-                        lineNumber: 23,
+                        lineNumber: 29,
                         columnNumber: 137
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/src/app/GamesPanel.tsx",
-                lineNumber: 23,
+                lineNumber: 29,
                 columnNumber: 55
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: `board board-${game}`,
                 children: board.map((cell, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                         className: "cell",
+                        disabled: thinking,
                         onClick: ()=>void move(index),
                         children: cell === "user" ? "○" : cell === "ai" ? "×" : ""
                     }, index, false, {
                         fileName: "[project]/src/app/GamesPanel.tsx",
-                        lineNumber: 23,
+                        lineNumber: 29,
                         columnNumber: 344
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/src/app/GamesPanel.tsx",
-                lineNumber: 23,
+                lineNumber: 29,
                 columnNumber: 277
+            }, this),
+            thinking && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                className: "thinking",
+                role: "status",
+                children: "ごっちが考え中…"
+            }, void 0, false, {
+                fileName: "[project]/src/app/GamesPanel.tsx",
+                lineNumber: 29,
+                columnNumber: 514
             }, this),
             result && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                 children: result
             }, void 0, false, {
                 fileName: "[project]/src/app/GamesPanel.tsx",
-                lineNumber: 23,
-                columnNumber: 492
+                lineNumber: 29,
+                columnNumber: 576
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                 className: "secondary",
@@ -345,17 +362,17 @@ function GamesPanel() {
                 children: "最初から"
             }, void 0, false, {
                 fileName: "[project]/src/app/GamesPanel.tsx",
-                lineNumber: 23,
-                columnNumber: 508
+                lineNumber: 29,
+                columnNumber: 592
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/GamesPanel.tsx",
-        lineNumber: 23,
+        lineNumber: 29,
         columnNumber: 10
     }, this);
 }
-_s(GamesPanel, "G5XfLKazXpv8RBWWVDyPxbGeNsQ=");
+_s(GamesPanel, "9w7CbpmsV7kqY391+cosp6wmNKQ=");
 _c = GamesPanel;
 var _c;
 __turbopack_context__.k.register(_c, "GamesPanel");
