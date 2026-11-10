@@ -1,0 +1,14 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/analysis/route": "/api/analysis",
+  "/api/auth/login/route": "/api/auth/login",
+  "/api/auth/logout/route": "/api/auth/logout",
+  "/api/auth/register/route": "/api/auth/register",
+  "/api/care/route": "/api/care",
+  "/api/character/reset/route": "/api/character/reset",
+  "/api/chat/route": "/api/chat",
+  "/api/game/route": "/api/game",
+  "/api/state/route": "/api/state",
+  "/page": "/"
+}

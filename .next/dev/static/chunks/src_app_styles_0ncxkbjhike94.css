@@ -1,0 +1,292 @@
+/* [project]/src/app/styles.css [app-client] (css) */
+:root {
+  --lightningcss-light: initial;
+  --lightningcss-dark: ;
+  color-scheme: light;
+  color: #3a2a27;
+  background: #fff8f1;
+  font-family: system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  color: #fff;
+  background: #eb795f;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 700;
+}
+
+button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.auth {
+  place-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  display: grid;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #f1dfd5;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 8px 30px #a95d2412;
+}
+
+.auth .card {
+  width: min(100%, 440px);
+}
+
+h1, h2, p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(1.7rem, 5vw, 2.5rem);
+}
+
+.eyebrow {
+  color: #eb795f;
+  letter-spacing: .12em;
+  font-weight: 800;
+}
+
+label {
+  gap: 8px;
+  margin: 16px 0;
+  font-weight: 700;
+  display: grid;
+}
+
+input {
+  border: 1px solid #e6d3c9;
+  border-radius: 10px;
+  width: 100%;
+  padding: 12px;
+}
+
+form button {
+  width: 100%;
+}
+
+.link {
+  color: #b45747;
+  background: none;
+  margin: 10px auto 0;
+  display: block;
+}
+
+.error {
+  color: #b42318;
+  margin: 10px 0;
+}
+
+.dashboard {
+  gap: 18px;
+  width: min(100%, 860px);
+  margin: auto;
+  padding: 32px 20px 60px;
+  display: grid;
+}
+
+header {
+  justify-content: space-between;
+  align-items: start;
+  display: flex;
+}
+
+header h1 {
+  margin-bottom: 0;
+}
+
+.secondary {
+  color: #b45747;
+  background: #fff;
+  border: 1px solid #eccfc1;
+}
+
+.pet {
+  background: linear-gradient(135deg, #ffe8d9, #fff);
+  align-items: center;
+  gap: 24px;
+  display: flex;
+}
+
+.pet-face {
+  font-size: 7rem;
+}
+
+.badge {
+  background: #f9bf8c;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: .85rem;
+}
+
+.stats {
+  gap: 16px;
+  display: grid;
+}
+
+.stats div {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 5px 12px;
+  display: grid;
+}
+
+.stats progress {
+  accent-color: #eb795f;
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.actions {
+  flex-wrap: wrap;
+  gap: 12px;
+  display: flex;
+}
+
+.actions button {
+  flex: 1;
+  justify-items: center;
+  gap: 6px;
+  min-width: 120px;
+  display: grid;
+}
+
+.actions span {
+  font-size: 1.8rem;
+}
+
+.messages {
+  gap: 8px;
+  min-height: 90px;
+  margin-bottom: 14px;
+  display: grid;
+}
+
+.messages p {
+  border-radius: 14px;
+  max-width: 85%;
+  margin: 0;
+  padding: 10px 14px;
+}
+
+.messages .user {
+  background: #ffe4d5;
+  justify-self: end;
+}
+
+.messages .assistant {
+  background: #f5f0ec;
+  justify-self: start;
+}
+
+.chat form {
+  gap: 8px;
+  display: flex;
+}
+
+.chat form button {
+  width: auto;
+}
+
+.game-tabs {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  display: flex;
+}
+
+.game-tabs button {
+  flex: 1;
+  min-width: 110px;
+}
+
+.selected {
+  background: #b45747;
+}
+
+.board {
+  gap: 3px;
+  max-width: 100%;
+  margin: 12px auto;
+  display: grid;
+}
+
+.board-tic_tac_toe {
+  grid-template-columns: repeat(3, 1fr);
+  width: min(100%, 300px);
+}
+
+.board-othello {
+  background: #5b9b66;
+  grid-template-columns: repeat(8, 1fr);
+  width: min(100%, 400px);
+  padding: 3px;
+}
+
+.board-gomoku {
+  background: #e4b66f;
+  grid-template-columns: repeat(15, 1fr);
+  width: min(100%, 450px);
+  padding: 3px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  color: #b45747;
+  background: #fffaf5;
+  border-radius: 3px;
+  padding: 0;
+  font-size: clamp(.8rem, 3vw, 1.5rem);
+}
+
+.board-othello .cell, .board-gomoku .cell {
+  background: #f7d99d;
+}
+
+.settings .terms {
+  color: #806b63;
+  margin-top: 16px;
+  font-size: .85rem;
+}
+
+@media (max-width: 520px) {
+  .dashboard {
+    padding: 22px 14px 40px;
+  }
+
+  .pet-face {
+    font-size: 5rem;
+  }
+
+  .pet {
+    gap: 14px;
+    padding: 18px;
+  }
+
+  header h1 {
+    font-size: 1.6rem;
+  }
+}
+
+/*# sourceMappingURL=src_app_styles_0ncxkbjhike94.css.map*/

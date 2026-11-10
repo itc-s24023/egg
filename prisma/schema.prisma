@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(uuid()) @db.Uuid
+  email               String               @unique @db.VarChar(255)
+  passwordHash        String               @map("password_hash") @db.VarChar(255)
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  character           Character?
+  passwordResetTokens PasswordResetToken[]
+  @@map("users")
+}
+
+model Character {
+  id                 String              @id @default(uuid()) @db.Uuid
+  userId             String              @unique @map("user_id") @db.Uuid
+  name               String              @db.VarChar(100)
+  growthStage        String              @default("たまご") @map("growth_stage") @db.VarChar(20)
+  experience         Int                 @default(0)
+  personalityType    String?             @map("personality_type") @db.VarChar(50)
+  favoriteTopics     Json                @default("{}") @map("favorite_topics")
+  startedAt          DateTime            @default(now()) @map("started_at")
+  diedAt             DateTime?           @map("died_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status             CharacterStatus?
+  messages           ConversationMessage[]
+  careActions        CareAction[]
+  analyses           PersonalityAnalysis[]
+  miniGameResults    MiniGameResult[]
+  @@map("characters")
+}
+
+model CharacterStatus {
+  characterId String    @id @map("character_id") @db.Uuid
+  hunger      Int       @default(70)
+  energy      Int       @default(70)
+  friendship  Int       @default(0)
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@map("character_statuses")
+}
+
+model ConversationMessage {
+  id          BigInt    @id @default(autoincrement())
+  characterId String    @map("character_id") @db.Uuid
+  role        String    @db.VarChar(20)
+  content     String
+  createdAt   DateTime  @default(now()) @map("created_at")
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@index([characterId, createdAt])
+  @@map("conversation_messages")
+}
+
+model CareAction {
+  id               BigInt    @id @default(autoincrement())
+  characterId      String    @map("character_id") @db.Uuid
+  actionType       String    @map("action_type") @db.VarChar(30)
+  experienceDelta  Int       @map("experience_delta")
+  hungerDelta      Int       @map("hunger_delta")
+  energyDelta      Int       @map("energy_delta")
+  friendshipDelta  Int       @map("friendship_delta")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  character        Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@index([characterId, createdAt])
+  @@map("care_actions")
+}
+
+model PersonalityAnalysis {
+  id                 BigInt    @id @default(autoincrement())
+  characterId        String    @map("character_id") @db.Uuid
+  personalityType    String    @map("personality_type") @db.VarChar(50)
+  topicSummary       Json      @map("topic_summary")
+  analysisSourceCount Int      @map("analysis_source_count")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  character          Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@map("personality_analyses")
+}
+
+model MiniGameResult {
+  id               BigInt    @id @default(autoincrement())
+  characterId      String    @map("character_id") @db.Uuid
+  gameType         String    @map("game_type") @db.VarChar(30)
+  result           String    @db.VarChar(20)
+  experienceDelta  Int       @map("experience_delta")
+  friendshipDelta  Int       @map("friendship_delta")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@map("mini_game_results")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("password_reset_tokens")
+}
