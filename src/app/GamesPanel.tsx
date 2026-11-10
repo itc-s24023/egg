@@ -20,5 +20,10 @@ export default function GamesPanel() {
     setBoard(data.board);
     if (data.result) setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！");
   }
-  return <section className="care card"><h2>ミニゲーム</h2><div className="game-tabs">{(Object.keys(gameLabels) as GameType[]).map((type) => <button className={game === type ? "selected" : "secondary"} key={type} onClick={() => selectGame(type)}>{gameLabels[type]}</button>)}</div><div className={`board board-${game}`}>{board.map((cell, index) => <button className="cell" key={index} onClick={() => void move(index)}>{cell === "user" ? "○" : cell === "ai" ? "×" : ""}</button>)}</div>{result && <p>{result}</p>}<button className="secondary" onClick={() => selectGame(game)}>最初から</button></section>;
+  return <section className="care card"><h2>ミニゲーム</h2><div className="game-tabs">{(Object.keys(gameLabels) as GameType[]).map((type) => <button className={game === type ? "selected" : "secondary"} key={type} onClick={() => selectGame(type)}>{gameLabels[type]}</button>)}</div><div className={`board board-${game}`}>{board.map((cell, index) => {
+    const isOthello = game === "othello";
+    return <button className={`cell${isOthello && cell ? " othello-disc" : ""}`} key={index} onClick={() => void move(index)} aria-label={isOthello ? `${index + 1}マス目${cell === "user" ? "黒" : cell === "ai" ? "白" : "空き"}` : `${index + 1}マス目`}>
+      {isOthello ? <span className={cell === "user" ? "disc-black" : cell === "ai" ? "disc-white" : ""} /> : cell === "user" ? "○" : cell === "ai" ? "×" : ""}
+    </button>;
+  })}</div>{result && <p>{result}</p>}<button className="secondary" onClick={() => selectGame(game)}>最初から</button></section>;
 }
