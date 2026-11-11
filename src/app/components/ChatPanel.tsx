@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useEffect, useRef, type FormEvent } from "react";
 import type { Character } from "../types";
 
 type ChatPanelProps = {
@@ -18,12 +18,21 @@ export default function ChatPanel({
   onMessageChange,
   onSubmit,
 }: ChatPanelProps) {
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const messagesElement = messagesRef.current;
+    if (messagesElement) {
+      messagesElement.scrollTop = messagesElement.scrollHeight;
+    }
+  }, [character.messages]);
+
   return (
     <section className="chat card">
       <h2>おはなし</h2>
-      <div className="messages">
-        {[...character.messages].reverse().map((item) => (
-          <p className={item.role} key={item.id}>
+      <div className="messages" ref={messagesRef}>
+        {character.messages.map((item) => (
+          <p className={item.role === "user" ? "user" : "assistant"} key={item.id}>
             {item.content}
           </p>
         ))}
