@@ -12,6 +12,18 @@ import StatusCard from "./components/StatusCard";
 import GamesPanel from "./GamesPanel";
 import type { Analysis, AppState } from "./types";
 
+type ApiResponse = { error?: string };
+
+async function readJson<T>(response: Response): Promise<T | null> {
+  const body = await response.text();
+  if (!body.trim()) return null;
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const [auth, setAuth] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -25,7 +37,10 @@ export default function Home() {
 
   const load = async () => {
     const response = await fetch("/api/state");
-    if (response.ok) setState(await response.json());
+    if (response.ok) {
+      const data = await readJson<AppState>(response);
+      if (data) setState(data);
+    }
   };
 
   useEffect(() => {
@@ -40,8 +55,8 @@ export default function Home() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const data = await response.json();
-    if (!response.ok) setError(data.error);
+    const data = await readJson<ApiResponse>(response);
+    if (!response.ok) setError(data?.error ?? "認証に失敗しました。しばらくしてから再試行してください。");
     else await load();
   }
 
@@ -63,8 +78,8 @@ export default function Home() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ message }),
     });
-    const data = await response.json();
-    if (!response.ok) setError(data.error);
+    const data = await readJson<ApiResponse>(response);
+    if (!response.ok) setError(data?.error ?? "メッセージの送信に失敗しました。");
     else {
       setMessage("");
       await load();
@@ -78,8 +93,8 @@ export default function Home() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ choice }),
     });
-    const data = await response.json();
-    if (!response.ok) setError(data.error);
+    const data = await readJson<ApiResponse & { opponent?: string; result?: "win" | "lose" | "draw" }>(response);
+    if (!response.ok) setError(data?.error ?? "ゲームの実行に失敗しました。");
     else {
       setGameResult(
         `相手は${data.opponent}。${
@@ -92,9 +107,9 @@ export default function Home() {
 
   async function analyze() {
     const response = await fetch("/api/analysis");
-    const data = await response.json();
-    if (!response.ok) setError(data.error);
-    else setAnalysis(data);
+    const data = await readJson<Analysis & ApiResponse>(response);
+    if (!response.ok) setError(data?.error ?? "分析に失敗しました。");
+    else if (data) setAnalysis(data);
   }
 
   async function resetCharacter() {
