@@ -80,7 +80,7 @@ export default function Home() {
     });
     const data = await readJson<ApiResponse>(response);
     if (!response.ok) setError(data?.error ?? "メッセージの送信に失敗しました。");
-    else if (data?.opponent && data.result) {
+    else {
       setMessage("");
       await load();
     }
@@ -95,7 +95,7 @@ export default function Home() {
     });
     const data = await readJson<ApiResponse & { opponent?: string; result?: "win" | "lose" | "draw" }>(response);
     if (!response.ok) setError(data?.error ?? "ゲームの実行に失敗しました。");
-    else {
+    else if (data?.opponent && data.result) {
       setGameResult(
         `相手は${data.opponent}。${
           data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "あなたの負け…" : "引き分け！"
