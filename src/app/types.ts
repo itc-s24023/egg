@@ -12,6 +12,10 @@ export type Character = {
     hunger: number;
     energy: number;
     friendship: number;
+    brightness: number;
+    logic: number;
+    humor: number;
+    politeness: number;
   };
   messages: Message[];
 };

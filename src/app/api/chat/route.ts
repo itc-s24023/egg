@@ -11,6 +11,28 @@ const maxHistoryMessageChars = 300;
 const maxPromptChars = 4_000;
 const maxOutputTokens = 256;
 
+type PersonalityDelta = {
+  brightness: number;
+  logic: number;
+  humor: number;
+  politeness: number;
+};
+
+function classifyPersonality(message: string): PersonalityDelta {
+  const delta: PersonalityDelta = { brightness: 0, logic: 0, humor: 0, politeness: 0 };
+  const add = (key: keyof PersonalityDelta, amount: number) => {
+    delta[key] += amount;
+  };
+
+  if (/楽しい|うれしい|嬉しい|元気|好き|最高|わくわく|頑張ろう/.test(message)) add("brightness", 2);
+  if (/悲しい|寂しい|つらい|疲れた|不安|嫌い/.test(message)) add("brightness", -2);
+  if (/なぜ|どうして|理由|考えて|仕組み|説明|計画|問題|勉強|知りたい/.test(message)) add("logic", 2);
+  if (/冗談|面白|おもしろ|笑|楽しい|ネタ|ゲーム/.test(message)) add("humor", 2);
+  if (/ありがとう|ありがと|お願いします|お願い|ください|ごめん|すみません|こんにちは|おはよう|こんばんは/.test(message)) add("politeness", 2);
+
+  return delta;
+}
+
 function getErrorStatus(error: unknown): number | undefined {
   if (typeof error !== "object" || error === null || !("status" in error)) return undefined;
   const status = (error as { status?: unknown }).status;
@@ -18,7 +40,8 @@ function getErrorStatus(error: unknown): number | undefined {
 }
 
 async function generateNvidiaResponse(
-  prompt: string,
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+  message: string,
   characterName: string,
   personalityType: string | null,
 ): Promise<string> {
@@ -38,11 +61,18 @@ async function generateNvidiaResponse(
           messages: [
             {
               role: "system",
-              content: `あなたはAIごっちのキャラクター「${characterName}」です。性格は${personalityType ?? "やさしい"}。短く親しみやすい日本語で返答してください。`,
+              content: [
+                `あなたはAIごっちのキャラクター「${characterName}」です。`,
+                `性格タイプは${personalityType ?? "やさしい"}です。`,
+                "ユーザーの発言内容を理解し、相づちだけで終わらせず、質問や相談には具体的に答えてください。",
+                "自然で親しみやすい日本語を2〜4文で返してください。ユーザーが質問していない場合も、発言内容に触れて会話を続けてください。",
+              ].join(" "),
             },
-            { role: "user", content: prompt },
+            ...history,
+            { role: "user", content: message },
           ],
           max_tokens: maxOutputTokens,
+          temperature: 0.7,
         }),
       });
       if (!response.ok) {
@@ -80,10 +110,11 @@ export async function POST(request: Request) {
     take: maxHistoryMessages,
   });
   const history = recentMessages.reverse()
-    .map((item) => `${item.role === "user" ? "ユーザー" : "キャラクター"}: ${item.content.slice(0, maxHistoryMessageChars)}`)
-    .join("\n");
-  const prompt = `これまでの会話:
-${history ? `${history}\n` : ""}ユーザー: ${message.trim()}`.slice(0, maxPromptChars);
+    .map((item) => ({
+      role: item.role === "user" ? "user" as const : "assistant" as const,
+      content: item.content.slice(0, maxHistoryMessageChars),
+    }));
+  const currentMessage = message.trim().slice(0, maxPromptChars);
   let reply: string;
   if (!process.env.NVIDIA_API_KEY) {
     if (process.env.NODE_ENV === "production") {
@@ -92,7 +123,7 @@ ${history ? `${history}\n` : ""}ユーザー: ${message.trim()}`.slice(0, maxPro
     reply = "お話しできてうれしいよ！もっと聞かせてね。";
   } else {
     try {
-      reply = await generateNvidiaResponse(prompt, character.name, character.personalityType);
+      reply = await generateNvidiaResponse(history, currentMessage, character.name, character.personalityType);
     } catch (error) {
       const errorStatus = getErrorStatus(error);
       console.error("NVIDIA API request failed", error instanceof Error ? error.message : "unknown error");
@@ -114,10 +145,20 @@ ${history ? `${history}\n` : ""}ユーザー: ${message.trim()}`.slice(0, maxPro
       return NextResponse.json({ error: "NVIDIA APIへの接続に失敗しました。しばらくしてから再試行してください。" }, { status: 502 });
     }
   }
+  const personalityDelta = classifyPersonality(message.trim());
   await prisma.$transaction([
     prisma.conversationMessage.create({ data: { characterId: character.id, role: "user", content: message.trim() } }),
     prisma.conversationMessage.create({ data: { characterId: character.id, role: "assistant", content: reply } }),
-    prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, (character.status?.friendship ?? 0) + 2) } }),
+    prisma.characterStatus.update({
+      where: { characterId: character.id },
+      data: {
+        friendship: Math.min(100, (character.status?.friendship ?? 0) + 2),
+        brightness: Math.max(0, Math.min(100, (character.status?.brightness ?? 50) + personalityDelta.brightness)),
+        logic: Math.max(0, Math.min(100, (character.status?.logic ?? 50) + personalityDelta.logic)),
+        humor: Math.max(0, Math.min(100, (character.status?.humor ?? 50) + personalityDelta.humor)),
+        politeness: Math.max(0, Math.min(100, (character.status?.politeness ?? 50) + personalityDelta.politeness)),
+      },
+    }),
   ]);
-  return NextResponse.json({ reply });
+  return NextResponse.json({ reply, personalityDelta });
 }
