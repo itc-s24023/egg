@@ -80,7 +80,7 @@ export default function Home() {
     });
     const data = await readJson<ApiResponse>(response);
     if (!response.ok) setError(data?.error ?? "メッセージの送信に失敗しました。");
-    else {
+    else if (data?.opponent && data.result) {
       setMessage("");
       await load();
     }
