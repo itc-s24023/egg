@@ -22,6 +22,10 @@ export type Character = {
 
 export type AppState = {
   character: Character;
+  canFeed: boolean;
+  canPlay: boolean;
+  canSleep: boolean;
+  sleepsToday: number;
 };
 
 export type Analysis = {

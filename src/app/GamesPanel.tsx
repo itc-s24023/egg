@@ -7,7 +7,7 @@ type GameType = keyof typeof gameLabels;
 const sizes: Record<GameType, number> = { tic_tac_toe: 9, othello: 64, gomoku: 225 };
 const initialOthello = () => { const board = Array<string | null>(64).fill(null); board[27] = "ai"; board[28] = "user"; board[35] = "user"; board[36] = "ai"; return board; };
 
-export default function GamesPanel() {
+export default function GamesPanel({ onGameComplete }: { onGameComplete: () => void }) {
   const [game, setGame] = useState<GameType>("tic_tac_toe");
   const [board, setBoard] = useState<Array<string | null>>(() => Array(9).fill(null));
   const [result, setResult] = useState("");
@@ -18,7 +18,10 @@ export default function GamesPanel() {
     const data = await response.json();
     if (!response.ok) { setResult(data.error); return; }
     setBoard(data.board);
-    if (data.result) setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！");
+    if (data.result) {
+      setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！");
+      onGameComplete();
+    }
   }
   return <section className="care card"><h2>ミニゲーム</h2><div className="game-tabs">{(Object.keys(gameLabels) as GameType[]).map((type) => <button className={game === type ? "selected" : "secondary"} key={type} onClick={() => selectGame(type)}>{gameLabels[type]}</button>)}</div><div className={`board board-${game}`}>{board.map((cell, index) => {
     const isOthello = game === "othello";

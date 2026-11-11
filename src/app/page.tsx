@@ -61,12 +61,15 @@ export default function Home() {
   }
 
   async function care(action: "feed" | "play" | "sleep") {
+    setError("");
     const response = await fetch("/api/care", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    const data = await readJson<ApiResponse>(response);
     if (response.ok) await load();
+    else setError(data?.error ?? "お世話の実行に失敗しました。");
   }
 
   async function chat(event: FormEvent<HTMLFormElement>) {
@@ -156,9 +159,15 @@ export default function Home() {
       </header>
       <CharacterSummary character={character} />
       <StatusCard character={character} />
-      <CarePanel onCare={(action) => void care(action)} />
+      <CarePanel
+        canFeed={state.canFeed}
+        canPlay={state.canPlay}
+        canSleep={state.canSleep}
+        sleepsToday={state.sleepsToday}
+        onCare={(action) => void care(action)}
+      />
       <RpsPanel result={gameResult} onPlay={(choice) => void playRps(choice)} />
-      <GamesPanel />
+      <GamesPanel onGameComplete={() => void load()} />
       <ChatPanel
         character={character}
         message={message}
