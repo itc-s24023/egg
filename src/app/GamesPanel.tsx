@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 
+type GamesPanelProps = {
+  onGameComplete?: () => void;
+};
+
 const gameLabels = { tic_tac_toe: "〇✕ゲーム", othello: "オセロ", gomoku: "五目並べ" } as const;
 type GameType = keyof typeof gameLabels;
 const sizes: Record<GameType, number> = { tic_tac_toe: 9, othello: 64, gomoku: 225 };
 const initialOthello = () => { const board = Array<string | null>(64).fill(null); board[27] = "ai"; board[28] = "user"; board[35] = "user"; board[36] = "ai"; return board; };
 
-export default function GamesPanel() {
+export default function GamesPanel({ onGameComplete }: GamesPanelProps) {
   const [game, setGame] = useState<GameType>("tic_tac_toe");
   const [board, setBoard] = useState<Array<string | null>>(() => Array(9).fill(null));
   const [result, setResult] = useState("");
@@ -21,6 +25,7 @@ export default function GamesPanel() {
       const data = await response.json();
       if (!response.ok) { setResult(data.error); return; }
       setBoard(data.board);
+      onGameComplete?.();
       if (data.result) setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！");
     } finally {
       setThinking(false);
