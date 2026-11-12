@@ -12,6 +12,12 @@
 
 NVIDIA APIでHTTP 410が返る場合は、APIキーの有効性だけでなく、NVIDIA API CatalogでPublic API Endpointsの利用権限が有効か確認してください。
 
+## Firebase
+
+Firebase Web SDKは `src/lib/firebase.ts` で初期化します。`.env` にFirebase ConsoleのWebアプリ設定を `NEXT_PUBLIC_FIREBASE_*` という名前で追加してください。これらの値はブラウザで使う公開設定ですが、`.env` はGitへコミットしないでください。
+
+`firestore` をクライアントコンポーネントからimportするとFirestoreを利用できます。Analyticsは `getFirebaseAnalytics()` をブラウザ上で呼び出してください。Firebaseを使う場合でも、現在のキャラクターAPIと認証データはPrisma/PostgreSQLを利用します。
+
 ## 実装済み
 
 - メールアドレス・パスワードによる登録、ログイン、ログアウト
