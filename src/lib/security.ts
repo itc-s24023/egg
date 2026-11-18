@@ -25,7 +25,7 @@ export async function setSession(userId: string): Promise<void> {
   const signature = createHmac("sha256", secret()).update(payload).digest("base64url");
   (await cookies()).set(cookieName, `${payload}.${signature}`, {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production",
-    path: "/", maxAge: 60 * 60 * 24 * 30,
+    path: "/", maxAge: 60 * 60 * 24,
   });
 }
 

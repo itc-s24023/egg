@@ -28,7 +28,7 @@ function getOthelloLegalMoves(board: Cell[]): number[] {
   });
 }
 
-export default function GamesPanel() {
+export default function GamesPanel({ onGameComplete }: { onGameComplete: () => void }) {
   const [game, setGame] = useState<GameType>("tic_tac_toe");
   const [board, setBoard] = useState<Cell[]>(() => Array(9).fill(null));
   const [result, setResult] = useState("");
@@ -42,7 +42,7 @@ export default function GamesPanel() {
     if (!response.ok) { setResult(data.error ?? "ゲームに失敗しました。"); return; }
     if (!data.board) return;
     setBoard(data.board); setHistory((previous) => [...previous, index, ...(data.cpuMove === null || data.cpuMove === undefined ? [] : [data.cpuMove])]); setRecommendedMove(data.recommendedMove ?? null);
-    if (data.result) setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！");
+    if (data.result) { setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！"); onGameComplete(); }
   }
   const isOthello = game === "othello";
   const isGomoku = game === "gomoku";
