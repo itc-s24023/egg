@@ -8,6 +8,7 @@ export type Character = {
   name: string;
   growthStage: string;
   experience: number;
+  personalityType: string | null;
   status: {
     hunger: number;
     energy: number;
