@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { getSessionUserId } from "@/src/lib/security";
+import { clamp, growthStage, personalityTypeAtHatch } from "@/src/lib/game";
 
 const apiBaseUrl = process.env.NVIDIA_API_BASE_URL ?? "https://integrate.api.nvidia.com/v1";
- const model = process.env.NVIDIA_MODEL ?? "nvidia/nemotron-3.5-bolt-e4b";
+const model = process.env.NVIDIA_MODEL ?? "nvidia/nemotron-3.5-bolt-e4b";
 const nvidiaTimeoutMs = 15_000;
 const nvidiaMaxAttempts = 3;
 const maxHistoryMessages = 6;
 const maxHistoryMessageChars = 300;
 const maxPromptChars = 4_000;
 const maxOutputTokens = 256;
+const chatExperience = 10;
 
 type PersonalityDelta = {
   brightness: number;
@@ -24,11 +26,16 @@ function classifyPersonality(message: string): PersonalityDelta {
     delta[key] += amount;
   };
 
-  if (/楽しい|うれしい|嬉しい|元気|好き|最高|わくわく|頑張ろう/.test(message)) add("brightness", 2);
-  if (/悲しい|寂しい|つらい|疲れた|不安|嫌い/.test(message)) add("brightness", -2);
-  if (/なぜ|どうして|理由|考えて|仕組み|説明|計画|問題|勉強|知りたい/.test(message)) add("logic", 2);
-  if (/冗談|面白|おもしろ|笑|楽しい|ネタ|ゲーム/.test(message)) add("humor", 2);
-  if (/ありがとう|ありがと|お願いします|お願い|ください|ごめん|すみません|こんにちは|おはよう|こんばんは/.test(message)) add("politeness", 2);
+  if (/楽しい|うれしい|嬉しい|元気|好き|最高|わくわく|楽しみ|幸せ|頑張ろう|頑張る|挑戦|成功|良かった|素敵|かわいい/.test(message)) add("brightness", 10);
+  if (/悲しい|寂しい|つらい|疲れた|不安|嫌い/.test(message)) add("brightness", -10);
+  const questionCount = Math.min(3, message.match(/[?？]/g)?.length ?? 0);
+  if (questionCount > 0) {
+    add("logic", questionCount * 10);
+  } else if (/なぜ|どうして|理由|考えて|仕組み|説明|計画|問題|勉強|知りたい/.test(message)) {
+    add("logic", 10);
+  }
+  if (/冗談|面白|おもしろ|笑|爆笑|ウケる|ネタ|ギャグ|ふざける|ツッコミ|ボケ|ゲーム|遊び/.test(message)) add("humor", 10);
+  if (/ありがとう|ありがと|教えてくれて|勉強になった|参考になった|助かった|お願いします|お願い|ください|ごめん|すみません|こんにちは|おはよう|こんばんは/.test(message)) add("politeness", 10);
 
   return delta;
 }
@@ -146,17 +153,31 @@ export async function POST(request: Request) {
     }
   }
   const personalityDelta = classifyPersonality(message.trim());
+  const nextExperience = character.experience + chatExperience;
+  const nextStatus = {
+    brightness: clamp((character.status?.brightness ?? 50) + personalityDelta.brightness),
+    logic: clamp((character.status?.logic ?? 50) + personalityDelta.logic),
+    humor: clamp((character.status?.humor ?? 50) + personalityDelta.humor),
+    politeness: clamp((character.status?.politeness ?? 50) + personalityDelta.politeness),
+  };
+  const personalityType = character.growthStage === "たまご" && nextExperience >= 150
+    ? personalityTypeAtHatch(character.name, nextStatus)
+    : undefined;
   await prisma.$transaction([
     prisma.conversationMessage.create({ data: { characterId: character.id, role: "user", content: message.trim() } }),
     prisma.conversationMessage.create({ data: { characterId: character.id, role: "assistant", content: reply } }),
+    prisma.character.update({
+      where: { id: character.id },
+      data: { experience: nextExperience, growthStage: growthStage(nextExperience), personalityType },
+    }),
     prisma.characterStatus.update({
       where: { characterId: character.id },
       data: {
         friendship: Math.min(100, (character.status?.friendship ?? 0) + 2),
-        brightness: Math.max(0, Math.min(100, (character.status?.brightness ?? 50) + personalityDelta.brightness)),
-        logic: Math.max(0, Math.min(100, (character.status?.logic ?? 50) + personalityDelta.logic)),
-        humor: Math.max(0, Math.min(100, (character.status?.humor ?? 50) + personalityDelta.humor)),
-        politeness: Math.max(0, Math.min(100, (character.status?.politeness ?? 50) + personalityDelta.politeness)),
+        brightness: nextStatus.brightness,
+        logic: nextStatus.logic,
+        humor: nextStatus.humor,
+        politeness: nextStatus.politeness,
       },
     }),
   ]);

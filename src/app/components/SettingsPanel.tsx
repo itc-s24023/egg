@@ -2,11 +2,13 @@ import type { Analysis } from "../types";
 
 type SettingsPanelProps = {
   analysis: Analysis | null;
+  growthStage: string;
+  personalityType: string | null;
   onAnalyze: () => void;
   onReset: () => void;
 };
 
-export default function SettingsPanel({ analysis, onAnalyze, onReset }: SettingsPanelProps) {
+export default function SettingsPanel({ analysis, growthStage, personalityType, onAnalyze, onReset }: SettingsPanelProps) {
   return (
     <section className="settings card">
       <h2>キャラクター分析・設定</h2>
@@ -20,7 +22,7 @@ export default function SettingsPanel({ analysis, onAnalyze, onReset }: Settings
       </div>
       {analysis && (
         <p>
-          性格タイプ: <strong>{analysis.personalityType}</strong>
+          性格タイプ: <strong>{growthStage === "たまご" ? "？" : personalityType ?? analysis.personalityType}</strong>
           <br />
           話題:{" "}
           {analysis.topics.length

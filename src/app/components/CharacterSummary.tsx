@@ -19,7 +19,8 @@ export default function CharacterSummary({ character }: { character: Character }
       <div>
         <span className="badge">{character.growthStage}</span>
         <h2>こんにちは！</h2>
-        <p>経験値 {character.experience} / 300</p>
+        <p>性格タイプ: {character.growthStage === "たまご" ? "？" : character.personalityType ?? image.personalityType}</p>
+        <p>経験値 {character.experience} / 150</p>
       </div>
     </section>
   );
