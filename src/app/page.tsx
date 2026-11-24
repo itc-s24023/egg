@@ -33,6 +33,7 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [gameResult, setGameResult] = useState("");
+  const [gameResultType, setGameResultType] = useState<"win" | "lose" | "draw" | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
 
   const load = async () => {
@@ -91,6 +92,8 @@ export default function Home() {
   }
 
   async function playRps(choice: "rock" | "paper" | "scissors") {
+    setGameResult("");
+    setGameResultType(null);
     const response = await fetch("/api/game", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -99,9 +102,10 @@ export default function Home() {
     const data = await readJson<ApiResponse & { opponent?: string; result?: "win" | "lose" | "draw" }>(response);
     if (!response.ok) setError(data?.error ?? "ゲームの実行に失敗しました。");
     else if (data?.opponent && data.result) {
+      setGameResultType(data.result);
       setGameResult(
         `相手は${data.opponent}。${
-          data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "あなたの負け…" : "引き分け！"
+          data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "負けても大丈夫。次はきっと勝てるよ！" : "引き分け！"
         }`,
       );
       await load();
@@ -168,7 +172,7 @@ export default function Home() {
         sleepsToday={state.sleepsToday}
         onCare={(action) => void care(action)}
       />
-      <RpsPanel result={gameResult} onPlay={(choice) => void playRps(choice)} />
+      <RpsPanel result={gameResult} resultType={gameResultType} onPlay={(choice) => void playRps(choice)} />
       <GamesPanel onGameComplete={() => void load()} />
       <ChatPanel
         character={character}
@@ -178,7 +182,13 @@ export default function Home() {
         onMessageChange={setMessage}
         onSubmit={chat}
       />
-      <SettingsPanel analysis={analysis} onAnalyze={() => void analyze()} onReset={() => void resetCharacter()} />
+      <SettingsPanel
+        analysis={analysis}
+        growthStage={character.growthStage}
+        personalityType={character.personalityType}
+        onAnalyze={() => void analyze()}
+        onReset={() => void resetCharacter()}
+      />
     </main>
   );
 }

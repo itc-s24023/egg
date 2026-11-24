@@ -34,26 +34,69 @@ export default function GamesPanel({ onGameComplete }: { onGameComplete: () => v
   const [result, setResult] = useState("");
   const [history, setHistory] = useState<number[]>([]);
   const [recommendedMove, setRecommendedMove] = useState<number | null>(null);
-  function selectGame(next: GameType) { setGame(next); setBoard(next === "othello" ? initialOthello() : Array(sizes[next]).fill(null)); setResult(""); setHistory([]); setRecommendedMove(next === "gomoku" ? 112 : null); }
+  const [thinking, setThinking] = useState(false);
+  const [resultType, setResultType] = useState<"win" | "lose" | "draw" | null>(null);
+  function selectGame(next: GameType) {
+    if (thinking) return;
+    setGame(next);
+    setBoard(next === "othello" ? initialOthello() : Array(sizes[next]).fill(null));
+    setResult("");
+    setResultType(null);
+    setHistory([]);
+    setRecommendedMove(next === "gomoku" ? 112 : null);
+  }
   async function move(index: number) {
-    if (board[index] !== null || result) return;
-    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ gameType: game, board, index }) });
-    const data = await response.json() as MoveResponse;
-    if (!response.ok) { setResult(data.error ?? "ゲームに失敗しました。"); return; }
-    if (!data.board) return;
-    setBoard(data.board); setHistory((previous) => [...previous, index, ...(data.cpuMove === null || data.cpuMove === undefined ? [] : [data.cpuMove])]); setRecommendedMove(data.recommendedMove ?? null);
-    if (data.result) { setResult(data.result === "win" ? "あなたの勝ち！" : data.result === "lose" ? "ごっちの勝ち！" : "引き分け！"); onGameComplete(); }
+    if (board[index] !== null || result || thinking) return;
+    setThinking(true);
+    try {
+      const [response] = await Promise.all([
+        fetch("/api/game", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ gameType: game, board, index }),
+        }),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 1000)),
+      ]);
+      const data = await response.json() as MoveResponse;
+      if (!response.ok) {
+        setResultType(null);
+        setResult(data.error ?? "ゲームに失敗しました。");
+        return;
+      }
+      if (!data.board) return;
+      setBoard(data.board);
+      setHistory((previous) => [
+        ...previous,
+        index,
+        ...(data.cpuMove === null || data.cpuMove === undefined ? [] : [data.cpuMove]),
+      ]);
+      setRecommendedMove(data.recommendedMove ?? null);
+      if (data.result) {
+        setResultType(data.result);
+        setResult(data.result === "win"
+          ? "やったね！ あなたの勝ちです！"
+          : data.result === "lose"
+            ? "負けても大丈夫。次はきっと勝てるよ！"
+            : "引き分け！");
+        onGameComplete();
+      }
+    } catch {
+      setResultType(null);
+      setResult("通信エラーで手を送れませんでした。");
+    } finally {
+      setThinking(false);
+    }
   }
   const isOthello = game === "othello";
   const isGomoku = game === "gomoku";
   const legalMoves = isOthello ? getOthelloLegalMoves(board) : [];
   const counts = isOthello ? { user: board.filter((cell) => cell === "user").length, ai: board.filter((cell) => cell === "ai").length } : null;
   const gomokuCounts = isGomoku ? { user: board.filter((cell) => cell === "user").length, ai: board.filter((cell) => cell === "ai").length } : null;
-  return <section className="care card"><h2>ミニゲーム</h2><div className="game-tabs">{(Object.keys(gameLabels) as GameType[]).map((type) => <button className={game === type ? "selected" : "secondary"} key={type} onClick={() => selectGame(type)}>{gameLabels[type]}</button>)}</div>{isOthello && <div className="othello-info"><div><strong>8×8</strong><span>黒が先手</span></div><div><strong>{counts?.user}</strong><span>黒</span></div><div><strong>{counts?.ai}</strong><span>白</span></div><div><strong>ふつう</strong><span>CPUの強さ</span></div><div><strong>黒</strong><span>あなたの色</span></div></div>}{isGomoku && <div className="othello-info"><div><strong>15×15</strong><span>黒が先手</span></div><div><strong>{gomokuCounts?.user}</strong><span>黒</span></div><div><strong>{gomokuCounts?.ai}</strong><span>白</span></div><div><strong>ふつう</strong><span>CPUの強さ</span></div><div><strong>黒</strong><span>あなたの色</span></div></div>}<div className={`board board-${game}`}>{board.map((cell, index) => {
+  return <section className="care card"><h2>ミニゲーム</h2><div className="game-tabs">{(Object.keys(gameLabels) as GameType[]).map((type) => <button className={game === type ? "selected" : "secondary"} key={type} onClick={() => selectGame(type)} disabled={thinking}>{gameLabels[type]}</button>)}</div>{isOthello && <div className="othello-info"><div><strong>8×8</strong><span>黒が先手</span></div><div><strong>{counts?.user}</strong><span>黒</span></div><div><strong>{counts?.ai}</strong><span>白</span></div><div><strong>ふつう</strong><span>CPUの強さ</span></div><div><strong>黒</strong><span>あなたの色</span></div></div>}{isGomoku && <div className="othello-info"><div><strong>15×15</strong><span>黒が先手</span></div><div><strong>{gomokuCounts?.user}</strong><span>黒</span></div><div><strong>{gomokuCounts?.ai}</strong><span>白</span></div><div><strong>ふつう</strong><span>CPUの強さ</span></div><div><strong>黒</strong><span>あなたの色</span></div></div>}{thinking && <p className="ai-thinking" role="status" aria-live="polite"><span aria-hidden="true">●</span> ごっちが考え中…</p>}<div className={`board board-${game}`}>{board.map((cell, index) => {
     const isLegal = isOthello && legalMoves.includes(index);
     const isRecommended = isGomoku && recommendedMove === index;
-    return <button className={`cell${isOthello && cell ? " othello-disc" : ""}${isLegal ? " legal-move" : ""}${isRecommended ? " recommended-move" : ""}`} key={index} onClick={() => void move(index)} aria-label={isOthello ? `${index + 1}マス目${cell === "user" ? "黒" : cell === "ai" ? "白" : isLegal ? "打てる場所" : "空き"}` : isGomoku && isRecommended ? `${index + 1}マス目おすすめ` : `${index + 1}マス目`}>
+    return <button className={`cell${isOthello && cell ? " othello-disc" : ""}${isLegal ? " legal-move" : ""}${isRecommended ? " recommended-move" : ""}`} key={index} onClick={() => void move(index)} disabled={thinking} aria-label={isOthello ? `${index + 1}マス目${cell === "user" ? "黒" : cell === "ai" ? "白" : isLegal ? "打てる場所" : "空き"}` : isGomoku && isRecommended ? `${index + 1}マス目おすすめ` : `${index + 1}マス目`}>
       {isOthello || isGomoku ? <span className={cell === "user" ? "disc-black" : cell === "ai" ? "disc-white" : ""} /> : cell === "user" ? "○" : cell === "ai" ? "×" : ""}
     </button>;
-  })}</div>{(isOthello || isGomoku) && <div className="othello-footer">{isGomoku && <span>おすすめの手: <strong>{recommendedMove === null ? "ありません" : `${Math.floor(recommendedMove / 15) + 1}行 ${recommendedMove % 15 + 1}列`}</strong></span>}{isOthello && <span>打てる場所: <strong>{legalMoves.length}</strong></span>}<span>棋譜: {history.length ? history.map((moveIndex, moveNumber) => `${moveNumber % 2 === 0 ? "黒" : "白"}${Math.floor(moveIndex / (isGomoku ? 15 : 8)) + 1}-${moveIndex % (isGomoku ? 15 : 8) + 1}`).join(" → ") : "まだありません"}</span></div>}{result && <p>{result}</p>}<button className="secondary" onClick={() => selectGame(game)}>最初から</button></section>;
+  })}</div>{(isOthello || isGomoku) && <div className="othello-footer">{isGomoku && <span>おすすめの手: <strong>{recommendedMove === null ? "ありません" : `${Math.floor(recommendedMove / 15) + 1}行 ${recommendedMove % 15 + 1}列`}</strong></span>}{isOthello && <span>打てる場所: <strong>{legalMoves.length}</strong></span>}<span>棋譜: {history.length ? history.map((moveIndex, moveNumber) => `${moveNumber % 2 === 0 ? "黒" : "白"}${Math.floor(moveIndex / (isGomoku ? 15 : 8)) + 1}-${moveIndex % (isGomoku ? 15 : 8) + 1}`).join(" → ") : "まだありません"}</span></div>}{result && <div className={`game-result ${resultType === "win" ? "game-result-win" : resultType === "lose" ? "game-result-lose" : "game-result-draw"}`} role="status" aria-live="polite">{resultType === "win" && <div className="confetti" aria-hidden="true">{Array.from({ length: 24 }).map((_, index) => <span key={index} />)}</div>}<strong>{resultType === "win" ? "🎉 おめでとう！ 🎉" : resultType === "lose" ? "🤝 よく頑張ったね！" : "引き分け！"}</strong><p>{result}</p></div>}<button className="secondary" onClick={() => selectGame(game)} disabled={thinking}>最初から</button></section>;
 }

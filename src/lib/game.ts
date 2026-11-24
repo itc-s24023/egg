@@ -1,3 +1,5 @@
+import { getPersonalityType, type CharacterImageStatus, type CharacterPersonalityType } from "./character-image";
+
 export type CareType = "feed" | "play" | "sleep";
 export const careEffects: Record<CareType, { experience: number; hunger: number; energy: number; friendship: number }> = {
   feed: { experience: 10, hunger: 20, energy: 0, friendship: 2 },
@@ -7,8 +9,12 @@ export const careEffects: Record<CareType, { experience: number; hunger: number;
 
 export function growthStage(experience: number): string {
   if (experience >= 300) return "せいちょう";
-  if (experience >= 100) return "こども";
+  if (experience >= 150) return "こども";
   return "たまご";
+}
+
+export function personalityTypeAtHatch(name: string, status: CharacterImageStatus): CharacterPersonalityType {
+  return getPersonalityType(name, status);
 }
 
 export function clamp(value: number): number {
