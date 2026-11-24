@@ -117,11 +117,13 @@ export default function Home() {
 
   async function resetCharacter() {
     if (!window.confirm("育成データと会話履歴をすべて初期化しますか？")) return;
+    setError("");
     const response = await fetch("/api/character/reset", { method: "POST" });
+    const data = await readJson<ApiResponse>(response);
     if (response.ok) {
       setAnalysis(null);
       await load();
-    }
+    } else setError(data?.error ?? "育成データを初期化できませんでした。");
   }
 
   if (!state?.character) {
