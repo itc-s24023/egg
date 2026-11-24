@@ -18,6 +18,9 @@ export async function GET() {
   const topics = ["食べ物", "ゲーム", "学校", "仕事", "音楽", "動物"].map((topic) => ({
     topic, count: (text.match(new RegExp(topic, "gi")) ?? []).length,
   })).filter((topic) => topic.count > 0).sort((a, b) => b.count - a.count);
+  if (character.growthStage === "たまご") {
+    return NextResponse.json({ personalityType: "?", topics });
+  }
   const personalityType = character.status
     ? getPersonalityType(character.name, character.status)
     : "ひだまり型";
