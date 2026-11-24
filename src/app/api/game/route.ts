@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { getSessionUserId } from "@/src/lib/security";
-import { growthStage } from "@/src/lib/game";
+import { growthStage, personalityTypeAtHatch } from "@/src/lib/game";
 
 const othelloDirections = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
 type OthelloCell = "user" | "ai" | null;
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       const experienceDelta = result === "win" ? 15 : result === "draw" ? 8 : 3;
       await prisma.$transaction([
         prisma.miniGameResult.create({ data: { characterId: character.id, gameType, result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta) } }),
+        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta), personalityType: character.growthStage === "たまご" && character.experience + experienceDelta >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
         prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + (result === "win" ? 5 : 2)) } }),
       ]);
     }
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
       const experienceDelta = result === "win" ? 15 : result === "draw" ? 8 : 3;
       await prisma.$transaction([
         prisma.miniGameResult.create({ data: { characterId: character.id, gameType, result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta) } }),
+        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta), personalityType: character.growthStage === "たまご" && character.experience + experienceDelta >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
         prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + (result === "win" ? 5 : 2)) } }),
       ]);
     }
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
       const experienceDelta = result === "win" ? 15 : result === "draw" ? 8 : 3;
       await prisma.$transaction([
         prisma.miniGameResult.create({ data: { characterId: character.id, gameType, result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta } } }),
+        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta), personalityType: character.growthStage === "たまご" && character.experience + experienceDelta >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
         prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + 2) } }),
       ]);
     }
@@ -215,7 +215,7 @@ export async function POST(request: Request) {
   const nextExperience = character.experience + experienceDelta;
   await prisma.$transaction([
     prisma.miniGameResult.create({ data: { characterId: character.id, gameType: "rock_paper_scissors", result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-    prisma.character.update({ where: { id: character.id }, data: { experience: nextExperience, growthStage: growthStage(nextExperience) } }),
+    prisma.character.update({ where: { id: character.id }, data: { experience: nextExperience, growthStage: growthStage(nextExperience), personalityType: character.growthStage === "たまご" && nextExperience >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
     prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + (result === "win" ? 5 : 2)) } }),
   ]);
   return NextResponse.json({ opponent, result });

@@ -180,7 +180,13 @@ export default function Home() {
         onMessageChange={setMessage}
         onSubmit={chat}
       />
-      <SettingsPanel analysis={analysis} onAnalyze={() => void analyze()} onReset={() => void resetCharacter()} />
+      <SettingsPanel
+        analysis={analysis}
+        growthStage={character.growthStage}
+        personalityType={character.personalityType}
+        onAnalyze={() => void analyze()}
+        onReset={() => void resetCharacter()}
+      />
     </main>
   );
 }

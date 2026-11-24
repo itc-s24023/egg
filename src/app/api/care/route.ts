@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
-import { clamp, careEffects, growthStage, type CareType } from "@/src/lib/game";
+import { clamp, careEffects, growthStage, personalityTypeAtHatch, type CareType } from "@/src/lib/game";
 import { getSessionUserId } from "@/src/lib/security";
 import { getJapanDayStart } from "@/src/lib/date";
 
@@ -45,8 +45,17 @@ export async function POST(request: Request) {
   const effect = careEffects[action];
   const updated = await prisma.$transaction(async (tx) => {
     const nextExperience = character.experience + effect.experience;
+    const nextStatus = {
+      brightness: character.status!.brightness,
+      logic: character.status!.logic,
+      humor: character.status!.humor,
+      politeness: character.status!.politeness,
+    };
+    const personalityType = character.growthStage === "たまご" && nextExperience >= 150
+      ? personalityTypeAtHatch(character.name, nextStatus)
+      : undefined;
     await tx.careAction.create({ data: { characterId: character.id, actionType: action, experienceDelta: effect.experience, hungerDelta: effect.hunger, energyDelta: effect.energy, friendshipDelta: effect.friendship } });
-    await tx.character.update({ where: { id: character.id }, data: { experience: nextExperience, growthStage: growthStage(nextExperience) } });
+    await tx.character.update({ where: { id: character.id }, data: { experience: nextExperience, growthStage: growthStage(nextExperience), personalityType } });
     return tx.characterStatus.update({ where: { characterId: character.id }, data: { hunger: clamp(character.status!.hunger + effect.hunger), energy: clamp(character.status!.energy + effect.energy), friendship: clamp(character.status!.friendship + effect.friendship) } });
   });
   return NextResponse.json({ status: updated });
