@@ -11,6 +11,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import StatusCard from "./components/StatusCard";
 import GamesPanel from "./GamesPanel";
 import type { Analysis, AppState } from "./types";
+import { signInWithGoogle } from "@/src/lib/firebase";
 
 type ApiResponse = { error?: string };
 
@@ -35,6 +36,7 @@ export default function Home() {
   const [gameResult, setGameResult] = useState("");
   const [gameResultType, setGameResultType] = useState<"win" | "lose" | "draw" | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
 
   const load = async () => {
     const response = await fetch("/api/state");
@@ -59,6 +61,26 @@ export default function Home() {
     const data = await readJson<ApiResponse>(response);
     if (!response.ok) setError(data?.error ?? "認証に失敗しました。しばらくしてから再試行してください。");
     else await load();
+  }
+
+  async function googleLogin() {
+    setError("");
+    setSigningIn(true);
+    try {
+      const idToken = await signInWithGoogle();
+      const response = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await readJson<ApiResponse>(response);
+      if (!response.ok) setError(data?.error ?? "Googleログインに失敗しました。");
+      else await load();
+    } catch {
+      setError("Googleログインを完了できませんでした。ポップアップを許可してください。");
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   async function care(action: "feed" | "play" | "sleep") {
@@ -135,10 +157,12 @@ export default function Home() {
         email={email}
         password={password}
         error={error}
+        signingIn={signingIn}
         onEmailChange={setEmail}
         onPasswordChange={setPassword}
         onSubmit={submitAuth}
         onToggleMode={() => setAuth(auth === "login" ? "register" : "login")}
+        onGoogleLogin={() => void googleLogin()}
       />
     );
   }

@@ -7,10 +7,12 @@ type AuthCardProps = {
   email: string;
   password: string;
   error: string;
+  signingIn: boolean;
   onEmailChange: (email: string) => void;
   onPasswordChange: (password: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onToggleMode: () => void;
+  onGoogleLogin: () => void;
 };
 
 export default function AuthCard({
@@ -18,10 +20,12 @@ export default function AuthCard({
   email,
   password,
   error,
+  signingIn,
   onEmailChange,
   onPasswordChange,
   onSubmit,
   onToggleMode,
+  onGoogleLogin,
 }: AuthCardProps) {
   const isLogin = mode === "login";
 
@@ -51,6 +55,9 @@ export default function AuthCard({
         </form>
         <button className="link" onClick={onToggleMode}>
           {isLogin ? "初めての方はこちら" : "ログインに戻る"}
+        </button>
+        <button className="google-login" type="button" onClick={onGoogleLogin} disabled={signingIn}>
+          {signingIn ? "Googleに接続中..." : "Googleでログイン"}
         </button>
       </section>
     </main>

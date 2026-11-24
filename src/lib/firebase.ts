@@ -2,6 +2,7 @@
 
 import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -14,11 +15,21 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+function getFirebaseApp() {
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    throw new Error("Firebaseの環境変数が設定されていません。");
+  }
+  return getApps().length ? getApp() : initializeApp(firebaseConfig);
+}
 
-export const firestore = getFirestore(app);
+export const firestore = getFirestore(getFirebaseApp());
+
+export async function signInWithGoogle(): Promise<string> {
+  const result = await signInWithPopup(getAuth(getFirebaseApp()), new GoogleAuthProvider());
+  return result.user.getIdToken();
+}
 
 export async function getFirebaseAnalytics(): Promise<Analytics | null> {
   if (!(await isSupported())) return null;
-  return getAnalytics(app);
+  return getAnalytics(getFirebaseApp());
 }
