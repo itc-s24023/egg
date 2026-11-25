@@ -15,14 +15,16 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+
 function getFirebaseApp() {
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  if (!hasFirebaseConfig) {
     throw new Error("Firebaseの環境変数が設定されていません。");
   }
   return getApps().length ? getApp() : initializeApp(firebaseConfig);
 }
 
-export const firestore = getFirestore(getFirebaseApp());
+export const firestore = hasFirebaseConfig ? getFirestore(getFirebaseApp()) : null;
 
 export async function signInWithGoogle(): Promise<string> {
   const result = await signInWithPopup(getAuth(getFirebaseApp()), new GoogleAuthProvider());
