@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { getSessionUserId } from "@/src/lib/security";
+import { getPersonalitySpeechStyle } from "@/src/lib/character-image";
 import { clamp, growthStage, personalityTypeAtHatch } from "@/src/lib/game";
 
 const apiBaseUrl = process.env.NVIDIA_API_BASE_URL ?? "https://integrate.api.nvidia.com/v1";
@@ -71,6 +72,7 @@ async function generateNvidiaResponse(
               content: [
                 `あなたはAIごっちのキャラクター「${characterName}」です。`,
                 `性格タイプは${personalityType ?? "やさしい"}です。`,
+                getPersonalitySpeechStyle(personalityType),
                 "ユーザーの発言内容を理解し、相づちだけで終わらせず、質問や相談には具体的に答えてください。",
                 "自然で親しみやすい日本語を2〜4文で返してください。ユーザーが質問していない場合も、発言内容に触れて会話を続けてください。",
               ].join(" "),

@@ -41,10 +41,26 @@ export function getPersonalityType(
   return candidates[0] ?? "ひだまり型";
 }
 
+export function getPersonalitySpeechStyle(personalityType: string | null): string {
+  if (personalityType?.replace(/好き$/, "型") === "ひだまり型") {
+    return "明るく前向きな口調で、親しみやすく元気よく話してください。";
+  }
+  if (personalityType?.replace(/好き$/, "型") === "はかせ型") {
+    return "知的で落ち着いた口調で、理由や仕組みをわかりやすく説明してください。";
+  }
+  if (personalityType?.replace(/好き$/, "型") === "おどけ型") {
+    return "明るくユーモアを交えた口調で、軽い冗談やひと言を使って親しげに話してください。";
+  }
+  if (personalityType?.replace(/好き$/, "型") === "しんし型") {
+    return "丁寧で礼儀正しい口調で、相手への配慮を示しながら落ち着いて話してください。";
+  }
+  return "やさしく親しみやすい口調で話してください。";
+}
+
 const childImages: Record<CharacterPersonalityType, string[]> = {
   "ひだまり型": ["01_はなまる.png", "06_沖縄シーサー.png"],
   "はかせ型": ["06_どんぐりん.png", "08_めがねん.png"],
-  "おどけ型": ["03_ピザ.png", "09_あめり.png"],
+  "おどけ型": ["ピザ.png", "09_あめり.png"],
   "しんし型": ["03_ロックン.png", "07_つきの.png", "07_侍ネコ.png"],
 };
 

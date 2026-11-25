@@ -11,7 +11,6 @@ import SettingsPanel from "./components/SettingsPanel";
 import StatusCard from "./components/StatusCard";
 import GamesPanel from "./GamesPanel";
 import type { Analysis, AppState } from "./types";
-import { signInWithGoogle } from "@/src/lib/firebase";
 
 type ApiResponse = { error?: string };
 
@@ -67,6 +66,7 @@ export default function Home() {
     setError("");
     setSigningIn(true);
     try {
+      const { signInWithGoogle } = await import("@/src/lib/firebase");
       const idToken = await signInWithGoogle();
       const response = await fetch("/api/auth/google", {
         method: "POST",
