@@ -1,16 +1,14 @@
-# conversation_messages
+# users/{uid}/characters/main/messages/{messageId}
 
 ## テーブル概要
 
-ユーザーとAIキャラクターの会話を1メッセージ単位で保存し、会話履歴表示とキャラクター分析に利用する。
+ユーザーとAIキャラクターの会話を1メッセージ単位で保存し、会話履歴表示とキャラクター分析に利用する。キャラクター配下のサブコレクションとして保存する。
 
-## カラム定義
+## フィールド定義
 
-|カラム名|データ型|制約|備考|
+|フィールド名|Firestore型|制約|備考|
 |---|---|---|---|
-|id|BIGSERIAL|PK, AI, NN|メッセージID|
-|character_id|UUID|FK(characters.id), NN|キャラクターID|
-|role|VARCHAR(20)|NN|userまたはassistant|
-|content|TEXT|NN|メッセージ本文|
-|created_at|TIMESTAMPTZ|NN|送信日時|
-
+|ドキュメントID|String|PK, NN|Firestore自動生成ID|
+|role|String|NN|userまたはassistant|
+|content|String|NN|メッセージ本文|
+|createdAt|Timestamp|NN|送信日時|

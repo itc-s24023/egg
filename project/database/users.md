@@ -1,16 +1,16 @@
-# users
+# users/{uid}
 
 ## テーブル概要
 
-ユーザー登録・ログインに必要なアカウント情報を管理する。パスワードは平文で保存せず、ハッシュ値のみ保存する。
+Firebase Authenticationユーザーに紐付くアプリ用プロフィールを管理する。メールアドレスはプロフィール情報として保持する。パスワード、認証トークン、サービスアカウント秘密鍵はFirestoreへ保存しない。
 
-## カラム定義
+## フィールド定義
 
-|カラム名|データ型|制約|備考|
+|フィールド名|Firestore型|制約|備考|
 |---|---|---|---|
-|id|UUID|PK, NN|ユーザーID|
-|email|VARCHAR(255)|UK, NN|ログイン用メールアドレス|
-|password_hash|VARCHAR(255)|NN|ハッシュ化済みパスワード|
-|created_at|TIMESTAMPTZ|NN|登録日時|
-|updated_at|TIMESTAMPTZ|NN|更新日時|
+|ドキュメントID|String|PK, NN|Firebase AuthenticationのUID|
+|email|String|NN|Firebase Authenticationのメールアドレス|
+|createdAt|Timestamp|NN|初回作成日時|
+|updatedAt|Timestamp|NN|最終更新日時|
 
+ユーザー情報は `users/{uid}` に保存する。認証プロバイダーとパスワードはFirebase Authenticationで管理する。

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
+import { characterRef, getDb, historyCollection, Timestamp } from "@/src/lib/firestore";
 import { getSessionUserId } from "@/src/lib/security";
-import { growthStage, personalityTypeAtHatch } from "@/src/lib/game";
+import { clamp, growthStage, personalityTypeAtHatch } from "@/src/lib/game";
 
 const othelloDirections = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
 type OthelloCell = "user" | "ai" | null;
@@ -105,12 +105,54 @@ function chooseGomokuMove(board: GomokuCell[], player: "user" | "ai"): number | 
   })[0] ?? null;
 }
 
+async function saveGameResult(
+  userId: string,
+  characterName: string,
+  gameType: string,
+  result: "win" | "lose" | "draw",
+  experienceDelta: number,
+  friendshipDelta: number,
+) {
+  const charRef = characterRef(userId);
+  const resultRef = historyCollection(userId, "miniGameResults").doc();
+  await getDb().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(charRef);
+    const character = snapshot.data();
+    if (!snapshot.exists || !character?.status) throw new Error("Character disappeared during game result");
+    const now = Timestamp.now();
+    const nextExperience = character.experience + experienceDelta;
+    const status = {
+      ...character.status,
+      friendship: clamp(character.status.friendship + friendshipDelta),
+      updatedAt: now,
+    };
+    const personalityType = character.growthStage === "たまご" && nextExperience >= 150
+      ? personalityTypeAtHatch(characterName, status)
+      : character.personalityType ?? null;
+    transaction.create(resultRef, {
+      gameType,
+      result,
+      experienceDelta,
+      friendshipDelta,
+      createdAt: now,
+    });
+    transaction.update(charRef, {
+      experience: nextExperience,
+      growthStage: growthStage(nextExperience),
+      personalityType,
+      status,
+      updatedAt: now,
+    });
+  });
+}
+
 export async function POST(request: Request) {
   const userId = await getSessionUserId();
   const { choice, gameType = "rock_paper_scissors", board, index } = await request.json() as { choice?: "rock" | "paper" | "scissors"; gameType?: string; board?: Array<string | null>; index?: number };
   if (!userId) return NextResponse.json({ error: "ログインが必要です。" }, { status: 401 });
-  const character = await prisma.character.findUnique({ where: { userId }, include: { status: true } });
-  if (!character?.status) return NextResponse.json({ error: "キャラクターが見つかりません。" }, { status: 404 });
+  const characterSnapshot = await characterRef(userId).get();
+  const character = characterSnapshot.data();
+  if (!characterSnapshot.exists || !character?.status) return NextResponse.json({ error: "キャラクターが見つかりません。" }, { status: 404 });
   if (gameType === "othello") {
     if (!board || board.length !== 64 || typeof index !== "number" || !Number.isInteger(index) || index < 0 || index >= 64 || board.some((cell) => cell !== null && cell !== "user" && cell !== "ai")) {
       return NextResponse.json({ error: "不正な盤面です。" }, { status: 400 });
@@ -130,11 +172,7 @@ export async function POST(request: Request) {
     const legalMoves = result ? [] : othelloLegalMoves(next, "user");
     if (result) {
       const experienceDelta = result === "win" ? 15 : result === "draw" ? 8 : 3;
-      await prisma.$transaction([
-        prisma.miniGameResult.create({ data: { characterId: character.id, gameType, result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta), personalityType: character.growthStage === "たまご" && character.experience + experienceDelta >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
-        prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + (result === "win" ? 5 : 2)) } }),
-      ]);
+      await saveGameResult(userId, character.name, gameType, result, experienceDelta, result === "win" ? 5 : 2);
     }
     return NextResponse.json({ board: next, result, counts, legalMoves });
   }
@@ -160,11 +198,7 @@ export async function POST(request: Request) {
     const recommendedMove = result ? null : chooseGomokuMove(next, "user");
     if (result) {
       const experienceDelta = result === "win" ? 15 : result === "draw" ? 8 : 3;
-      await prisma.$transaction([
-        prisma.miniGameResult.create({ data: { characterId: character.id, gameType, result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta), personalityType: character.growthStage === "たまご" && character.experience + experienceDelta >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
-        prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + (result === "win" ? 5 : 2)) } }),
-      ]);
+      await saveGameResult(userId, character.name, gameType, result, experienceDelta, result === "win" ? 5 : 2);
     }
     return NextResponse.json({ board: next, result, counts, cpuMove, recommendedMove });
   }
@@ -198,11 +232,7 @@ export async function POST(request: Request) {
     if (!result && !next.includes(null)) result = "draw";
     if (result) {
       const experienceDelta = result === "win" ? 15 : result === "draw" ? 8 : 3;
-      await prisma.$transaction([
-        prisma.miniGameResult.create({ data: { characterId: character.id, gameType, result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-        prisma.character.update({ where: { id: character.id }, data: { experience: { increment: experienceDelta }, growthStage: growthStage(character.experience + experienceDelta), personalityType: character.growthStage === "たまご" && character.experience + experienceDelta >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
-        prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + 2) } }),
-      ]);
+      await saveGameResult(userId, character.name, gameType, result, experienceDelta, 2);
     }
     return NextResponse.json({ board: next, result });
   }
@@ -212,11 +242,6 @@ export async function POST(request: Request) {
   const opponent = options[Math.floor(Math.random() * options.length)];
   const result = choice === opponent ? "draw" : (choice === "rock" && opponent === "scissors") || (choice === "paper" && opponent === "rock") || (choice === "scissors" && opponent === "paper") ? "win" : "lose";
   const experienceDelta = result === "win" ? 15 : result === "draw" ? 8 : 3;
-  const nextExperience = character.experience + experienceDelta;
-  await prisma.$transaction([
-    prisma.miniGameResult.create({ data: { characterId: character.id, gameType: "rock_paper_scissors", result, experienceDelta, friendshipDelta: result === "win" ? 5 : 2 } }),
-    prisma.character.update({ where: { id: character.id }, data: { experience: nextExperience, growthStage: growthStage(nextExperience), personalityType: character.growthStage === "たまご" && nextExperience >= 150 && character.status ? personalityTypeAtHatch(character.name, character.status) : undefined } }),
-    prisma.characterStatus.update({ where: { characterId: character.id }, data: { friendship: Math.min(100, character.status.friendship + (result === "win" ? 5 : 2)) } }),
-  ]);
+  await saveGameResult(userId, character.name, "rock_paper_scissors", result, experienceDelta, result === "win" ? 5 : 2);
   return NextResponse.json({ opponent, result });
 }

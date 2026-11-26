@@ -1,17 +1,15 @@
-# personality_analyses
+# users/{uid}/characters/main/analyses/{analysisId}
 
 ## テーブル概要
 
-会話やお世話の履歴を分析した時点の性格タイプと話題傾向を保存する。
+会話やお世話の履歴を分析した時点の性格タイプと話題傾向を保存する。キャラクター配下のサブコレクションとして保存する。
 
-## カラム定義
+## フィールド定義
 
-|カラム名|データ型|制約|備考|
+|フィールド名|Firestore型|制約|備考|
 |---|---|---|---|
-|id|BIGSERIAL|PK, AI, NN|分析結果ID|
-|character_id|UUID|FK(characters.id), NN|キャラクターID|
-|personality_type|VARCHAR(50)|NN|性格タイプ|
-|topic_summary|JSONB|NN|話題傾向|
-|analysis_source_count|INTEGER|NN|分析対象データ件数|
-|created_at|TIMESTAMPTZ|NN|分析日時|
-
+|ドキュメントID|String|PK, NN|Firestore自動生成ID|
+|personalityType|String|NN|性格タイプ|
+|topicSummary|Array<Map>|NN|話題傾向|
+|analysisSourceCount|Number|NN|分析対象データ件数|
+|createdAt|Timestamp|NN|分析日時|

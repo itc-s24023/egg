@@ -1,47 +1,60 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
+import { characterRef, historyCollection, serializeFirestore, Timestamp } from "@/src/lib/firestore";
 import { getSessionUserId } from "@/src/lib/security";
 import { getJapanDayStart } from "@/src/lib/date";
 
-function serializeBigInts<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value, (_, item) => typeof item === "bigint" ? item.toString() : item)) as T;
-}
+export const runtime = "nodejs";
 
 export async function GET() {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "ログインが必要です。" }, { status: 401 });
-  const character = await prisma.character.findUnique({
-    where: { userId },
-    include: {
-      status: true,
-      messages: { orderBy: { createdAt: "asc" }, take: 20 },
-      careActions: {
-        where: { actionType: { in: ["feed", "play"] } },
-        orderBy: { createdAt: "desc" },
-        take: 2,
-      },
-      miniGameResults: { orderBy: { createdAt: "desc" }, take: 1 },
-    },
-  });
-  if (!character) return NextResponse.json({ character: null });
-  const lastFeedAt = character.careActions[0]?.createdAt;
-  const messageTimeFilter = lastFeedAt ? { createdAt: { gt: lastFeedAt } } : {};
-  const [userMessages, assistantMessages] = await Promise.all([
-    prisma.conversationMessage.count({ where: { characterId: character.id, role: "user", ...messageTimeFilter } }),
-    prisma.conversationMessage.count({ where: { characterId: character.id, role: "assistant", ...messageTimeFilter } }),
+
+  const dayStart = Timestamp.fromDate(getJapanDayStart());
+  const [characterSnapshot, messagesSnapshot, careSnapshot, gamesSnapshot, todayCareSnapshot] = await Promise.all([
+    characterRef(userId).get(),
+    historyCollection(userId, "messages").orderBy("createdAt", "asc").limit(20).get(),
+    historyCollection(userId, "careActions").get(),
+    historyCollection(userId, "miniGameResults").orderBy("createdAt", "desc").limit(1).get(),
+    historyCollection(userId, "careActions").where("createdAt", ">=", dayStart).get(),
   ]);
-  const canFeed = userMessages > 0 && assistantMessages > 0;
-  const lastPlayAt = character.careActions.find((action) => action.actionType === "play")?.createdAt;
-  const latestGameAt = character.miniGameResults[0]?.createdAt;
-  const canPlay = Boolean(latestGameAt && (!lastPlayAt || latestGameAt > lastPlayAt));
-  const sleepsToday = await prisma.careAction.count({
-    where: { characterId: character.id, actionType: "sleep", createdAt: { gte: getJapanDayStart() } },
-  });
-  return NextResponse.json({
-    character: serializeBigInts(character),
-    canFeed,
+  if (!characterSnapshot.exists) return NextResponse.json({ character: null });
+
+  const character = characterSnapshot.data()!;
+  const messages = messagesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const careActions = careSnapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() })) as Array<{
+      id: string;
+      actionType: string;
+      createdAt: Timestamp;
+    }>;
+  careActions.sort((left, right) => right.createdAt.toMillis() - left.createdAt.toMillis());
+  const relevantCare = careActions.filter((action) => action.actionType === "feed" || action.actionType === "play");
+  const miniGameResults = gamesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Array<{
+    id: string;
+    createdAt: Timestamp;
+  }>;
+  const lastFeed = careActions.find((action) => action.actionType === "feed")?.createdAt;
+  const messagesSinceFeed = lastFeed
+    ? await historyCollection(userId, "messages").where("createdAt", ">", lastFeed).get()
+    : await historyCollection(userId, "messages").get();
+  const userMessages = messagesSinceFeed.docs.filter((doc) => doc.get("role") === "user").length;
+  const assistantMessages = messagesSinceFeed.docs.filter((doc) => doc.get("role") === "assistant").length;
+  const lastPlay = careActions.find((action) => action.actionType === "play")?.createdAt;
+  const latestGameAt = miniGameResults[0]?.createdAt;
+  const canPlay = Boolean(latestGameAt && (!lastPlay || latestGameAt.toMillis() > lastPlay.toMillis()));
+  const sleepsToday = todayCareSnapshot.docs.filter((doc) => doc.get("actionType") === "sleep").length;
+
+  return NextResponse.json(serializeFirestore({
+    character: {
+      ...character,
+      id: characterSnapshot.id,
+      messages,
+      careActions: relevantCare.slice(0, 2),
+      miniGameResults,
+    },
+    canFeed: userMessages > 0 && assistantMessages > 0,
     canPlay,
     canSleep: sleepsToday < 2,
     sleepsToday,
-  });
+  }));
 }

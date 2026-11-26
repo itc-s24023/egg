@@ -11,6 +11,12 @@ import SettingsPanel from "./components/SettingsPanel";
 import StatusCard from "./components/StatusCard";
 import GamesPanel from "./GamesPanel";
 import type { Analysis, AppState } from "./types";
+import { FirebaseError } from "firebase/app";
+import {
+  registerWithEmail,
+  signInWithEmail,
+  signOutFromFirebase,
+} from "@/src/lib/firebase";
 
 type ApiResponse = { error?: string };
 
@@ -35,6 +41,7 @@ export default function Home() {
   const [gameResult, setGameResult] = useState("");
   const [gameResultType, setGameResultType] = useState<"win" | "lose" | "draw" | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
 
   const load = async () => {
     const response = await fetch("/api/state");
@@ -51,14 +58,79 @@ export default function Home() {
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    const response = await fetch(`/api/auth/${auth}`, {
+    setSigningIn(true);
+    try {
+      const idToken = auth === "register"
+        ? await registerWithEmail(email, password)
+        : await signInWithEmail(email, password);
+      await completeFirebaseLogin(idToken);
+    } catch (authError) {
+      setError(getAuthErrorMessage(authError));
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  function getAuthErrorMessage(authError: unknown): string {
+    if (!(authError instanceof FirebaseError)) {
+      return "認証を完了できませんでした。時間をおいて再試行してください。";
+    }
+    switch (authError.code) {
+      case "auth/email-already-in-use":
+        return "このメールアドレスは既にFirebaseに登録されています。ログインしてください。";
+      case "auth/invalid-email":
+        return "メールアドレスの形式を確認してください。";
+      case "auth/invalid-credential":
+      case "auth/user-not-found":
+      case "auth/wrong-password":
+        return "メールアドレスまたはパスワードが正しくありません。";
+      case "auth/weak-password":
+        return "パスワードは8文字以上で設定してください。";
+      case "auth/operation-not-allowed":
+        return "Firebase ConsoleでAuthenticationのメール/パスワードまたはGoogleプロバイダーを有効にしてください。";
+      case "auth/network-request-failed":
+        return "Firebaseに接続できません。ネットワークとFirebaseの設定を確認してください。";
+      case "auth/too-many-requests":
+        return "ログイン試行が多すぎます。しばらく待ってから再試行してください。";
+      case "auth/unauthorized-domain":
+        return "Firebase Authenticationの承認済みドメインに、このサイトのドメインを追加してください。";
+      case "auth/invalid-api-key":
+        return "FirebaseのAPIキーが正しくありません。.envのNEXT_PUBLIC_FIREBASE_API_KEYを確認してください。";
+      case "auth/popup-blocked":
+        return "ブラウザーのポップアップを許可してから再試行してください。";
+      case "auth/popup-closed-by-user":
+        return "Googleログインがキャンセルされました。";
+      default:
+        return "認証を完了できませんでした。Firebase Authenticationの設定を確認してください。";
+    }
+  }
+
+  async function completeFirebaseLogin(idToken: string) {
+    const response = await fetch("/api/auth/firebase", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ idToken }),
     });
     const data = await readJson<ApiResponse>(response);
-    if (!response.ok) setError(data?.error ?? "認証に失敗しました。しばらくしてから再試行してください。");
-    else await load();
+    if (!response.ok) {
+      setError(data?.error ?? "Firebaseログインに失敗しました。");
+      return;
+    }
+    await load();
+  }
+
+  async function googleLogin() {
+    setError("");
+    setSigningIn(true);
+    try {
+      const { signInWithGoogle } = await import("@/src/lib/firebase");
+      const idToken = await signInWithGoogle();
+      await completeFirebaseLogin(idToken);
+    } catch (authError) {
+      setError(getAuthErrorMessage(authError));
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   async function care(action: "feed" | "play" | "sleep") {
@@ -137,10 +209,12 @@ export default function Home() {
         email={email}
         password={password}
         error={error}
+        signingIn={signingIn}
         onEmailChange={setEmail}
         onPasswordChange={setPassword}
         onSubmit={submitAuth}
         onToggleMode={() => setAuth(auth === "login" ? "register" : "login")}
+        onGoogleLogin={() => void googleLogin()}
       />
     );
   }
@@ -157,6 +231,7 @@ export default function Home() {
           className="secondary"
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
+            await signOutFromFirebase();
             setState(null);
           }}
         >

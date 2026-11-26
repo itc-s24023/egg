@@ -2,7 +2,14 @@
 
 import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,11 +21,35 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
-export const firestore = getFirestore(app);
+function getFirebaseApp() {
+  if (!hasFirebaseConfig) {
+    throw new Error("Firebaseの環境変数が設定されていません。");
+  }
+  return getApps().length ? getApp() : initializeApp(firebaseConfig);
+}
+
+export async function registerWithEmail(email: string, password: string): Promise<string> {
+  const result = await createUserWithEmailAndPassword(getAuth(getFirebaseApp()), email.trim(), password);
+  return result.user.getIdToken();
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<string> {
+  const result = await signInWithEmailAndPassword(getAuth(getFirebaseApp()), email.trim(), password);
+  return result.user.getIdToken();
+}
+
+export async function signInWithGoogle(): Promise<string> {
+  const result = await signInWithPopup(getAuth(getFirebaseApp()), new GoogleAuthProvider());
+  return result.user.getIdToken();
+}
+
+export async function signOutFromFirebase(): Promise<void> {
+  await signOut(getAuth(getFirebaseApp()));
+}
 
 export async function getFirebaseAnalytics(): Promise<Analytics | null> {
   if (!(await isSupported())) return null;
-  return getAnalytics(app);
+  return getAnalytics(getFirebaseApp());
 }
