@@ -1,18 +1,16 @@
-# mini_game_results
+# users/{uid}/characters/main/miniGameResults/{resultId}
 
 ## テーブル概要
 
-じゃんけん、〇✕ゲーム、オセロ、五目並べの対戦結果を管理する。
+じゃんけん、〇✕ゲーム、オセロ、五目並べの対戦結果を管理する。キャラクター配下のサブコレクションとして保存する。
 
-## カラム定義
+## フィールド定義
 
-|カラム名|データ型|制約|備考|
+|フィールド名|Firestore型|制約|備考|
 |---|---|---|---|
-|id|BIGSERIAL|PK, AI, NN|対戦結果ID|
-|character_id|UUID|FK(characters.id), NN|キャラクターID|
-|game_type|VARCHAR(30)|NN|rock_paper_scissors、tic_tac_toe、othello、gomoku|
-|result|VARCHAR(20)|NN|win、lose、draw|
-|experience_delta|INTEGER|NN|増加した経験値|
-|friendship_delta|INTEGER|NN|増加したなかよし度|
-|created_at|TIMESTAMPTZ|NN|対戦終了日時|
-
+|ドキュメントID|String|PK, NN|Firestore自動生成ID|
+|gameType|String|NN|rock_paper_scissors、tic_tac_toe、othello、gomoku|
+|result|String|NN|win、lose、draw|
+|experienceDelta|Number|NN|増加した経験値|
+|friendshipDelta|Number|NN|増加したなかよし度|
+|createdAt|Timestamp|NN|対戦終了日時|

@@ -2,8 +2,14 @@
 
 import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -24,11 +30,23 @@ function getFirebaseApp() {
   return getApps().length ? getApp() : initializeApp(firebaseConfig);
 }
 
-export const firestore = hasFirebaseConfig ? getFirestore(getFirebaseApp()) : null;
+export async function registerWithEmail(email: string, password: string): Promise<string> {
+  const result = await createUserWithEmailAndPassword(getAuth(getFirebaseApp()), email.trim(), password);
+  return result.user.getIdToken();
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<string> {
+  const result = await signInWithEmailAndPassword(getAuth(getFirebaseApp()), email.trim(), password);
+  return result.user.getIdToken();
+}
 
 export async function signInWithGoogle(): Promise<string> {
   const result = await signInWithPopup(getAuth(getFirebaseApp()), new GoogleAuthProvider());
   return result.user.getIdToken();
+}
+
+export async function signOutFromFirebase(): Promise<void> {
+  await signOut(getAuth(getFirebaseApp()));
 }
 
 export async function getFirebaseAnalytics(): Promise<Analytics | null> {

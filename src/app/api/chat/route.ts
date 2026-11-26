@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
+import { characterRef, getDb, historyCollection, Timestamp } from "@/src/lib/firestore";
 import { getSessionUserId } from "@/src/lib/security";
 import { getPersonalitySpeechStyle } from "@/src/lib/character-image";
 import { clamp, growthStage, personalityTypeAtHatch } from "@/src/lib/game";
@@ -111,17 +111,18 @@ export async function POST(request: Request) {
   const { message } = await request.json() as { message?: string };
   if (!userId) return NextResponse.json({ error: "ログインが必要です。" }, { status: 401 });
   if (!message?.trim() || message.length > 2000) return NextResponse.json({ error: "メッセージを入力してください。" }, { status: 400 });
-  const character = await prisma.character.findUnique({ where: { userId }, include: { status: true } });
-  if (!character) return NextResponse.json({ error: "キャラクターが見つかりません。" }, { status: 404 });
-  const recentMessages = await prisma.conversationMessage.findMany({
-    where: { characterId: character.id },
-    orderBy: { createdAt: "desc" },
-    take: maxHistoryMessages,
-  });
-  const history = recentMessages.reverse()
+  const charRef = characterRef(userId);
+  const characterSnapshot = await charRef.get();
+  const character = characterSnapshot.data();
+  if (!characterSnapshot.exists || !character) return NextResponse.json({ error: "キャラクターが見つかりません。" }, { status: 404 });
+  const recentMessages = await historyCollection(userId, "messages")
+    .orderBy("createdAt", "desc")
+    .limit(maxHistoryMessages)
+    .get();
+  const history = recentMessages.docs.reverse()
     .map((item) => ({
-      role: item.role === "user" ? "user" as const : "assistant" as const,
-      content: item.content.slice(0, maxHistoryMessageChars),
+      role: item.get("role") === "user" ? "user" as const : "assistant" as const,
+      content: String(item.get("content") ?? "").slice(0, maxHistoryMessageChars),
     }));
   const currentMessage = message.trim().slice(0, maxPromptChars);
   let reply: string;
@@ -155,33 +156,36 @@ export async function POST(request: Request) {
     }
   }
   const personalityDelta = classifyPersonality(message.trim());
-  const nextExperience = character.experience + chatExperience;
-  const nextStatus = {
-    brightness: clamp((character.status?.brightness ?? 50) + personalityDelta.brightness),
-    logic: clamp((character.status?.logic ?? 50) + personalityDelta.logic),
-    humor: clamp((character.status?.humor ?? 50) + personalityDelta.humor),
-    politeness: clamp((character.status?.politeness ?? 50) + personalityDelta.politeness),
-  };
-  const personalityType = character.growthStage === "たまご" && nextExperience >= 150
-    ? personalityTypeAtHatch(character.name, nextStatus)
-    : undefined;
-  await prisma.$transaction([
-    prisma.conversationMessage.create({ data: { characterId: character.id, role: "user", content: message.trim() } }),
-    prisma.conversationMessage.create({ data: { characterId: character.id, role: "assistant", content: reply } }),
-    prisma.character.update({
-      where: { id: character.id },
-      data: { experience: nextExperience, growthStage: growthStage(nextExperience), personalityType },
-    }),
-    prisma.characterStatus.update({
-      where: { characterId: character.id },
-      data: {
-        friendship: Math.min(100, (character.status?.friendship ?? 0) + 2),
-        brightness: nextStatus.brightness,
-        logic: nextStatus.logic,
-        humor: nextStatus.humor,
-        politeness: nextStatus.politeness,
-      },
-    }),
-  ]);
+  const messages = historyCollection(userId, "messages");
+  await getDb().runTransaction(async (transaction) => {
+    const freshSnapshot = await transaction.get(charRef);
+    const freshCharacter = freshSnapshot.data();
+    if (!freshSnapshot.exists || !freshCharacter) throw new Error("Character disappeared during chat");
+    const now = Timestamp.now();
+    const assistantTimestamp = Timestamp.fromMillis(now.toMillis() + 1);
+    const nextExperience = freshCharacter.experience + chatExperience;
+    const oldStatus = freshCharacter.status ?? {};
+    const nextStatus = {
+      hunger: oldStatus.hunger ?? 70,
+      energy: oldStatus.energy ?? 70,
+      friendship: Math.min(100, (oldStatus.friendship ?? 0) + 2),
+      brightness: clamp((oldStatus.brightness ?? 50) + personalityDelta.brightness),
+      logic: clamp((oldStatus.logic ?? 50) + personalityDelta.logic),
+      humor: clamp((oldStatus.humor ?? 50) + personalityDelta.humor),
+      politeness: clamp((oldStatus.politeness ?? 50) + personalityDelta.politeness),
+      updatedAt: now,
+    };
+    transaction.create(messages.doc(), { role: "user", content: message.trim(), createdAt: now });
+    transaction.create(messages.doc(), { role: "assistant", content: reply, createdAt: assistantTimestamp });
+    transaction.update(charRef, {
+      experience: nextExperience,
+      growthStage: growthStage(nextExperience),
+      personalityType: freshCharacter.growthStage === "たまご" && nextExperience >= 150
+        ? personalityTypeAtHatch(freshCharacter.name, nextStatus)
+        : freshCharacter.personalityType ?? null,
+      status: nextStatus,
+      updatedAt: now,
+    });
+  });
   return NextResponse.json({ reply, personalityDelta });
 }
